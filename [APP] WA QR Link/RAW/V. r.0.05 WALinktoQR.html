@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        input[type="file"] {
+            margin: 20px 0;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #status {
+            margin: 20px 0;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>QR Code Generator</h1>
+        <input type="file" id="fileInput" accept=".csv">
+        <button id="generateBtn">Generate QR Codes</button>
+        <div id="status"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <script>
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please upload a CSV file first.');
+                return;
+            }
+
+            document.getElementById('status').innerText = 'Processing...';
+            
+            try {
+                const csvData = await file.text();
+                const lines = csvData.trim().split('\n'); // Ensure no empty lines
+                const zip = new JSZip();
+                const csvDataArray = [];
+
+                // WhatsApp logo URL
+                const logoUrl = 'https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg';
+                
+                for (let i = 1; i < lines.length; i++) { // Skip header row
+                    const [name, number] = lines[i].split(',').map(s => s.trim());
+
+                    if (name && number) {
+                        // Use goqr.me API to generate QR code
+                        const qrCodeURL = `https://api.qrserver.com/v1/create-qr-code/?data=https://wa.me/${number}&size=400x400`;
+                        const qrCodeBlob = await fetch(qrCodeURL).then(res => res.blob());
+
+                        // Create a canvas to draw the QR code with the logo
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        const qrCodeImage = new Image();
+                        const logoImage = new Image();
+
+                        qrCodeImage.src = URL.createObjectURL(qrCodeBlob);
+                        logoImage.src = logoUrl;
+
+                        // Wait for both images to load
+                        await new Promise((resolve, reject) => {
+                            qrCodeImage.onload = resolve;
+                            qrCodeImage.onerror = reject;
+                            logoImage.onload = resolve;
+                            logoImage.onerror = reject;
+                        });
+
+                        canvas.width = qrCodeImage.width;
+                        canvas.height = qrCodeImage.height;
+                        
+                        // Draw the QR code onto the canvas
+                        ctx.drawImage(qrCodeImage, 0, 0);
+
+                        // Convert SVG logo to PNG using canvas
+                        const logoCanvas = document.createElement('canvas');
+                        const logoCtx = logoCanvas.getContext('2d');
+                        logoCanvas.width = qrCodeImage.width;
+                        logoCanvas.height = qrCodeImage.height;
+
+                        // Ensure the logo is properly scaled
+                        const logoSize = qrCodeImage.width / 3.4; // Adjust as needed
+                        const logoX = (qrCodeImage.width - logoSize) / 2;
+                        const logoY = (qrCodeImage.height - logoSize) / 2;
+
+                        // Draw the SVG logo onto the canvas
+                        try {
+                            const svgResponse = await fetch(logoUrl);
+                            const svgText = await svgResponse.text();
+                            const svgImage = new Image();
+                            svgImage.src = 'data:image/svg+xml;base64,' + btoa(svgText);
+
+                            await new Promise((resolve, reject) => {
+                                svgImage.onload = resolve;
+                                svgImage.onerror = reject;
+                            });
+
+                            logoCtx.drawImage(svgImage, logoX, logoY, logoSize, logoSize);
+
+                            // Convert the canvas to a PNG blob
+                            const logoBlob = await new Promise((resolve, reject) => logoCanvas.toBlob(resolve, 'image/png', 1.0));
+                            
+                            if (!logoBlob) {
+                                throw new Error('Failed to convert logo to PNG');
+                            }
+
+                            const logoPng = new Image();
+                            logoPng.src = URL.createObjectURL(logoBlob);
+                            await new Promise((resolve, reject) => {
+                                logoPng.onload = resolve;
+                                logoPng.onerror = reject;
+                            });
+                            ctx.drawImage(logoPng, 0, 0);
+
+                            const qrCodeWithLogoBlob = await new Promise((resolve, reject) => canvas.toBlob(resolve, 'image/png', 1.0));
+                            
+                            if (!qrCodeWithLogoBlob) {
+                                throw new Error('Failed to convert canvas to PNG');
+                            }
+
+                            const qrCodeFilename = `${number}_.png`;
+                            zip.file(qrCodeFilename, qrCodeWithLogoBlob);
+
+                            csvDataArray.push({
+                                FullName: name, // FullName is kept as is
+                                QRCodeFilename: qrCodeFilename
+                            });
+                        } catch (error) {
+                            console.error('Error during SVG to PNG conversion:', error);
+                            document.getElementById('status').innerText = 'Error converting logo to PNG.';
+                            return;
+                        }
+                    }
+                }
+
+                // Add CSV file to the zip
+                const csvContent = "FullName,QRCodeFilename\n" + csvDataArray.map(data => `${data.FullName},${data.QRCodeFilename}`).join('\n');
+                zip.file("qrcode_data.csv", csvContent);
+                
+                // Generate the zip file and trigger the download
+                zip.generateAsync({ type: "blob" }).then(content => {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(content);
+                    link.download = 'qrcodes.zip';
+                    link.click();
+                    document.getElementById('status').innerText = 'Download ready!';
+                }).catch(err => {
+                    document.getElementById('status').innerText = 'Error occurred during zip creation.';
+                    console.error(err);
+                });
+
+            } catch (error) {
+                document.getElementById('status').innerText = 'Error occurred.';
+                console.error(error);
+            }
+        });
+    </script>
+</body>
+</html>

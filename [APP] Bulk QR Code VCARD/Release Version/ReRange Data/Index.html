@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Reformatter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 50px auto;
+            text-align: center;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 10px;
+            cursor: pointer;
+        }
+
+        table {
+            border: 1px solid #ddd;
+            border-collapse: collapse;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CSV Reformatter</h1>
+        <input type="file" id="csvFile" accept=".csv">
+        <button onclick="processCSV()">Process CSV</button>
+        <div id="result"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script>
+        function processCSV() {
+            const fileInput = document.getElementById('csvFile');
+            const resultDiv = document.getElementById('result');
+
+            const file = fileInput.files[0];
+
+            if (file) {
+                Papa.parse(file, {
+                    header: true,
+                    dynamicTyping: true,
+                    complete: function(results) {
+                        const formattedData = formatCSV(results.data);
+                        displayResult(formattedData);
+                    }
+                });
+            } else {
+                alert('Please select a CSV file.');
+            }
+        }
+
+        function formatCSV(data) {
+            const formattedData = data.map(entry => {
+                return {
+                    FirstName: entry.FirstName || '',
+                    LastName: entry.LastName || '',
+                    Title: entry.Title || '',
+                    URL: entry.URL || '',
+                    Email: entry.Email || '',
+                    WorkPhone: entry.WorkPhone || '',
+                    HomePhone: entry.HomePhone || '',
+                    Street: entry.Street || '',
+                    City: entry.City || '',
+                    State: entry.State || '',
+                    Zipcode: entry.Zipcode || '',
+                    Country: entry.Country || ''
+                };
+            });
+
+            return formattedData;
+        }
+
+        function displayResult(data) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<h2>Formatted Data:</h2>';
+
+            const table = document.createElement('table');
+            table.border = '1';
+            table.cellPadding = '5';
+
+            // Create header row
+            const headerRow = table.insertRow(0);
+            Object.keys(data[0]).forEach(key => {
+                const headerCell = headerRow.insertCell(-1);
+                headerCell.textContent = key;
+            });
+
+            // Create data rows
+            data.forEach(entry => {
+                const row = table.insertRow(-1);
+                Object.values(entry).forEach(value => {
+                    const cell = row.insertCell(-1);
+                    cell.textContent = value;
+                });
+            });
+
+            resultDiv.appendChild(table);
+
+            // Add download button
+            const downloadButton = document.createElement('button');
+            downloadButton.textContent = 'Download CSV';
+            downloadButton.addEventListener('click', function() {
+                downloadCSV(data);
+            });
+
+            resultDiv.appendChild(downloadButton);
+        }
+
+        function downloadCSV(data) {
+            // Convert data to CSV format
+            const csvContent = Papa.unparse(data);
+
+            // Create a blob object
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+            // Create a temporary anchor element for download
+            const link = document.createElement("a");
+            if (link.download !== undefined) { // feature detection
+                // Create a URL for the blob
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", "formatted_data.csv");
+
+                // Append the anchor to the body
+                document.body.appendChild(link);
+
+                // Trigger the click event to download the CSV
+                link.click();
+
+                // Clean up: remove the temporary anchor
+                document.body.removeChild(link);
+            } else {
+                alert('Your browser does not support downloading files programmatically. Please try another browser.');
+            }
+        }
+    </script>
+</body>
+</html>

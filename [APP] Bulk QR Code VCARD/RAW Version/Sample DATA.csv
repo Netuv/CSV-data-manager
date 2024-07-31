@@ -1,0 +1,4 @@
+FirstName,Lastname,FullName,Title,URL,Email,WorkPhone,HomePhone,Street,City,State,Zipcode,Country
+John,Doe,John Doe,Manager,https://example.com,john.doe@example.com,+1234567890,+9876543210,123 Main St,Anytown,CA,12345,USA
+Jane,Smith,Jane Smith,CEO,https://example.com,jane.smith@example.com,+9876543210,+1234567890,456 Oak St,Sometown,NY,67890,USA
+Bob,Johnson,Bob Johnson,Developer,https://example.com,bob.johnson@example.com,+3456789012,+9012345678,789 Elm St,Anotherville,TX,23456,USA

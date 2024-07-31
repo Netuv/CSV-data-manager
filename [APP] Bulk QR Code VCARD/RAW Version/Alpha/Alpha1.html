@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk QR Code Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.1.5/jszip.min.js"></script>
+    <script src="https://cdn.rawgit.com/kazuhikoarase/qrcode-generator/v1.4.3/dist/qrcode.min.js"></script>
+</head>
+<body>
+    <h1>Bulk QR Code Generator</h1>
+    <input type="file" id="csvFile" accept=".csv">
+    <button onclick="generateQR()">Generate QR Codes</button>
+
+    <script>
+        function generateQR() {
+            var fileInput = document.getElementById('csvFile');
+            var file = fileInput.files[0];
+
+            if (file) {
+                var reader = new FileReader();
+
+                reader.onload = function (e) {
+                    var csvData = e.target.result;
+                    var rows = csvData.split('\n');
+                    var zip = new JSZip();
+
+                    // Counter to track the number of generated QR codes
+                    var generateCount = 0;
+
+                    // Loop through each row in the CSV
+                    for (var i = 1; i < rows.length; i++) {
+                        var rowData = rows[i].split(',');
+
+                        // Assuming the CSV format is: Name,Organization,Title,Phone,Email,Address,Position,Mobile,Website,Street,Zipcode,City,State,Country
+                        var name = rowData[0];
+                        var organization = rowData[1];
+                        var title = rowData[2];
+                        var phone = rowData[3];
+                        var email = rowData[4];
+                        var address = rowData[5];
+                        var position = rowData[6];
+                        var mobile = rowData[7];
+                        var website = rowData[8];
+                        var street = rowData[9];
+                        var zipcode = rowData[10];
+                        var city = rowData[11];
+                        var state = rowData[12];
+                        var country = rowData[13];
+
+                        // Create a VCard string
+                        var vCardData = `BEGIN:VCARD
+VERSION:3.0
+FN:${name}
+ORG:${organization}
+TITLE:${title}
+TEL:${phone}
+EMAIL:${email}
+ADR;TYPE=WORK:${address};${city};${state};${zipcode};${country}
+ORG:${organization}
+TITLE:${title}
+POSITION:${position}
+TEL;TYPE=CELL:${mobile}
+URL:${website}
+END:VCARD`;
+
+                        // Create a QR code using qrcode-generator with a fixed size
+                        var qr = qrcode(0, 'L');
+                        qr.addData(vCardData);
+                        qr.make();
+
+                        // Convert the QR code to a data URL
+                        var qrDataURL = qr.createDataURL(10, 0);
+
+                        // Add the QR code image to the zip file
+                        zip.file(`${name}.png`, dataURLtoBlob(qrDataURL));
+
+                        // Increment the generate count
+                        generateCount++;
+
+                        // Check if all QR codes have been generated before creating the zip file
+                        if (generateCount === rows.length - 1) {
+                            // Generate the zip file and trigger the download
+                            zip.generateAsync({ type: "blob" })
+                                .then(function (content) {
+                                    // Create a download link
+                                    var link = document.createElement('a');
+                                    link.href = URL.createObjectURL(content);
+                                    link.download = 'qrcodes.zip';
+                                    link.click();
+                                });
+                        }
+                    }
+                };
+
+                reader.readAsText(file);
+            } else {
+                alert('Please select a CSV file.');
+            }
+        }
+
+        // Function to convert data URL to Blob
+        function dataURLtoBlob(dataURL) {
+            var arr = dataURL.split(',');
+            var mime = arr[0].match(/:(.*?);/)[1];
+            var bstr = atob(arr[1]);
+            var n = bstr.length;
+            var u8arr = new Uint8Array(n);
+            while (n--) {
+                u8arr[n] = bstr.charCodeAt(n);
+            }
+            return new Blob([u8arr], { type: mime });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CSV Generator</title>
+</head>
+<body>
+
+  <label for="startNumber">Start Number:</label>
+  <input type="number" id="startNumber" value="1" min="1" required>
+  <br>
+
+  <label for="endNumber">End Number:</label>
+  <input type="number" id="endNumber" value="100" min="1" required>
+  <br>
+
+  <label for="digitEditor">Number of Digits:</label>
+  <input type="number" id="digitEditor" value="3" min="1" required>
+  <br>
+
+  <label for="fileName">File Name:</label>
+  <input type="text" id="fileName" readonly>
+  <br>
+
+  <button onclick="generateCSV()">Generate CSV</button>
+
+  <script>
+    function generateCSV() {
+      const startNumber = document.getElementById('startNumber').valueAsNumber;
+      const endNumber = document.getElementById('endNumber').valueAsNumber;
+      const digitEditor = document.getElementById('digitEditor').valueAsNumber;
+
+      const fileName = `${String(startNumber).padStart(digitEditor, '0')}-${String(endNumber).padStart(digitEditor, '0')}.csv`;
+      document.getElementById('fileName').value = fileName;
+
+      const csvContent = convertRangeToCSV(startNumber, endNumber, digitEditor);
+      downloadCSV(csvContent, fileName);
+    }
+
+    function convertRangeToCSV(startNumber, endNumber, digitEditor) {
+      let csv = 'Number\n';
+      for (let i = startNumber; i <= endNumber; i++) {
+        const paddedNumber = String(i).padStart(digitEditor, '0');
+        const csvRow = `"${paddedNumber}"\n`;
+        csv += csvRow;
+      }
+      return csv;
+    }
+
+    function downloadCSV(csvData, fileName) {
+      const csvContent = 'data:text/csv;charset=utf-8,' + encodeURI(csvData);
+      const link = document.createElement('a');
+      link.setAttribute('href', csvContent);
+      link.setAttribute('download', fileName);
+      link.click();
+    }
+  </script>
+
+</body>
+</html>

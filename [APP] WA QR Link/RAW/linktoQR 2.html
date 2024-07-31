@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            text-align: center;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        input[type="file"] {
+            margin: 20px 0;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #status {
+            margin: 20px 0;
+            font-size: 16px;
+        }
+
+        #downloadLink {
+            display: none;
+            margin-top: 20px;
+            text-decoration: none;
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>QR Code Generator</h1>
+        <input type="file" id="fileInput" accept=".csv">
+        <button id="generateBtn">Generate QR Codes</button>
+        <div id="status"></div>
+        <a id="downloadLink" href="#">Download ZIP</a>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script>
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('Please upload a CSV file first.');
+                return;
+            }
+
+            document.getElementById('status').innerText = 'Processing...';
+
+            try {
+                const csvData = await file.text();
+                const lines = csvData.split('\n').filter(line => line.trim() !== '');
+                const zip = new JSZip();
+
+                for (let i = 1; i < lines.length; i++) { // Skip header row
+                    const [name, number] = lines[i].split(',');
+                    
+                    if (name && number) {
+                        const qrCodeURL = `https://api.qrserver.com/v1/create-qr-code/?data=https://wa.me/${number}&size=200x200`;
+                        const qrCodeBlob = await fetch(qrCodeURL).then(res => res.blob());
+                        
+                        zip.file(`${name}.png`, qrCodeBlob);
+                    }
+                }
+
+                zip.generateAsync({ type: 'blob' }).then(content => {
+                    const downloadLink = document.getElementById('downloadLink');
+                    downloadLink.href = URL.createObjectURL(content);
+                    downloadLink.download = 'qrcodes.zip';
+                    downloadLink.style.display = 'inline';
+                    downloadLink.innerText = 'Download ZIP';
+                    document.getElementById('status').innerText = 'QR Codes generated!';
+                });
+            } catch (error) {
+                document.getElementById('status').innerText = 'Error generating QR codes.';
+                console.error(error);
+            }
+        });
+    </script>
+</body>
+</html>
