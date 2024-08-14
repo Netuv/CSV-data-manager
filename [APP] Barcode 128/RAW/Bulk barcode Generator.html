@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Barcode Generator</title>
+</head>
+<body>
+    <h1>Bulk Barcode Generator (CODE128)</h1>
+    <input type="file" id="csvFile" accept=".csv" />
+    
+    <!-- Add a dropdown to select the output format -->
+    <label for="formatSelect">Output Format:</label>
+    <select id="formatSelect">
+        <option value="svg">SVG</option>
+        <option value="png">PNG</option>
+    </select>
+    
+    <button id="generateBtn">Generate Barcodes</button>
+    <div id="output"></div>
+    <a id="downloadLink" style="display:none">Download ZIP</a>
+
+    <!-- Include necessary libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.0/dist/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
+
+    <script>
+        document.getElementById('generateBtn').addEventListener('click', function () {
+            const fileInput = document.getElementById('csvFile').files[0];
+            if (!fileInput) {
+                alert("Please upload a CSV file!");
+                return;
+            }
+
+            const format = document.getElementById('formatSelect').value;
+
+            Papa.parse(fileInput, {
+                header: false,
+                dynamicTyping: true,
+                complete: function(results) {
+                    const data = results.data;
+                    generateBarcodes(data, format);
+                }
+            });
+        });
+
+        async function generateBarcodes(data, format) {
+            const zip = new JSZip();
+            const svgNamespace = "http://www.w3.org/2000/svg";
+            const promises = [];
+
+            data.forEach((row, index) => {
+                if (row[0] && row[0].toString().length > 0) {
+                    if (format === 'svg') {
+                        const svg = document.createElementNS(svgNamespace, "svg");
+                        JsBarcode(svg, row[0], { format: "CODE128" });
+
+                        const svgData = new XMLSerializer().serializeToString(svg);
+                        zip.file(`${row[0]}.svg`, svgData);
+                    } else if (format === 'png') {
+                        const canvas = document.createElement('canvas');
+                        JsBarcode(canvas, row[0], { format: "CODE128" });
+
+                        const promise = new Promise((resolve) => {
+                            canvas.toBlob(function(blob) {
+                                zip.file(`${row[0]}.png`, blob);
+                                resolve();
+                            });
+                        });
+                        promises.push(promise);
+                    }
+                } else {
+                    console.warn(`Row ${index + 1} is invalid or empty`);
+                }
+            });
+
+            await Promise.all(promises);
+
+            zip.generateAsync({ type: "blob" }).then(function (content) {
+                const downloadLink = document.getElementById("downloadLink");
+                downloadLink.href = URL.createObjectURL(content);
+                downloadLink.download = "barcodes.zip";
+                downloadLink.style.display = "block";
+                downloadLink.innerText = "Download ZIP File";
+            });
+        }
+    </script>
+</body>
+</html>
